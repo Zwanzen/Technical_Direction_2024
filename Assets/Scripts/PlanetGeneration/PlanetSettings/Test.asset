@@ -1,0 +1,96 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f9a515d97450cdb4682b5efa2efea09f, type: 3}
+  m_Name: Test
+  m_EditorClassIdentifier: 
+  planetRadius: 1
+  noiseLayers:
+  - enabled: 1
+    useFirstLayerAsMask: 0
+    noiseSettings:
+      filterType: 0
+      simpleNoiseSettings:
+        noiseStrength: 0.06
+        numLayers: 3
+        baseRoughness: 0.95
+        roughness: 2.44
+        persistence: 0.5
+        centre: {x: 0, y: 0, z: 0}
+        minValue: 0.78
+      rigidNoiseSettings:
+        noiseStrength: 0.15
+        numLayers: 3
+        baseRoughness: 1.43
+        roughness: 1.06
+        persistence: 2.61
+        centre: {x: 0, y: 0, z: 0}
+        minValue: 0.39
+  - enabled: 1
+    useFirstLayerAsMask: 1
+    noiseSettings:
+      filterType: 0
+      simpleNoiseSettings:
+        noiseStrength: 1.7
+        numLayers: 4
+        baseRoughness: 1.78
+        roughness: 2.15
+        persistence: 0.62
+        centre: {x: 0, y: 0, z: 0}
+        minValue: 0.59
+      rigidNoiseSettings:
+        noiseStrength: 1.71
+        numLayers: 3
+        baseRoughness: 3.41
+        roughness: 1.06
+        persistence: 4.84
+        centre: {x: 0, y: 0, z: 0}
+        minValue: 0.39
+  - enabled: 1
+    useFirstLayerAsMask: 0
+    noiseSettings:
+      filterType: 1
+      simpleNoiseSettings:
+        noiseStrength: 1.7
+        numLayers: 4
+        baseRoughness: 0.96
+        roughness: 2.89
+        persistence: 0.62
+        centre: {x: 0, y: 0, z: 0}
+        minValue: 0.78
+      rigidNoiseSettings:
+        noiseStrength: 0.02
+        numLayers: 3
+        baseRoughness: 2.56
+        roughness: 0.62
+        persistence: -0.69
+        centre: {x: 0, y: 0, z: 0}
+        minValue: 0
+  - enabled: 1
+    useFirstLayerAsMask: 0
+    noiseSettings:
+      filterType: 0
+      simpleNoiseSettings:
+        noiseStrength: 0.04
+        numLayers: 4
+        baseRoughness: 2.53
+        roughness: 4.67
+        persistence: 0.35
+        centre: {x: 3.01, y: 0, z: 0}
+        minValue: 0.69
+      rigidNoiseSettings:
+        noiseStrength: 0.02
+        numLayers: 3
+        baseRoughness: 2.56
+        roughness: 0.62
+        persistence: -0.69
+        centre: {x: 0, y: 0, z: 0}
+        minValue: 0
