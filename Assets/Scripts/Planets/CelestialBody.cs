@@ -5,7 +5,9 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody))]
 public class CelestialBody : GravityObject
 {
-
+    [SerializeField]
+    bool showRadius = false;
+    public float radius;
     public float surfaceGravity;
     public Vector3 initialVelocity;
     public string bodyName = "Unnamed";
@@ -15,7 +17,6 @@ public class CelestialBody : GravityObject
     public float mass { get; private set; }
     Rigidbody rb;
     Planet body;
-    float radius;
 
     void Awake()
     {
@@ -53,7 +54,6 @@ public class CelestialBody : GravityObject
 
     void OnValidate()
     {
-        radius = GetComponent<Planet>().shapeSettings.planetRadius;
         mass = surfaceGravity * radius * radius / Universe.gravitationalConstant;
         meshHolder = transform.GetChild(0);
         gameObject.name = bodyName;
@@ -75,4 +75,13 @@ public class CelestialBody : GravityObject
         }
     }
 
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.yellow;
+
+        if (showRadius)
+        {
+            Gizmos.DrawSphere(transform.position, radius);
+        }
+    }
 }

@@ -30,6 +30,7 @@ public class Planet : MonoBehaviour
         GeneratePlanet();
     }
 
+
     void Initialize()
     {
         shapeGenerator.UpdateSettings(shapeSettings);
