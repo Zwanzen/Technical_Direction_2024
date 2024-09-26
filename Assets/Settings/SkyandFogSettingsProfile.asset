@@ -155,7 +155,7 @@ MonoBehaviour:
     m_Value: 0
   exposure:
     m_OverrideState: 1
-    m_Value: 16.51
+    m_Value: 15.01
   multiplier:
     m_OverrideState: 1
     m_Value: 2741.9
@@ -422,10 +422,10 @@ MonoBehaviour:
     m_Value: 0
   limitMin:
     m_OverrideState: 1
-    m_Value: 2.7480087
+    m_Value: 12.356364
   limitMax:
     m_OverrideState: 1
-    m_Value: 12.957277
+    m_Value: 15
   curveMap:
     m_OverrideState: 0
     m_Value:

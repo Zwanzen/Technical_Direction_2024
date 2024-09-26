@@ -6,7 +6,7 @@ public class DrawShipPath : MonoBehaviour
 {
     public ShipController ship;
     public CelestialBody OrbitingBody;
-    public LayerMask planetMask;
+    public LayerMask rayMask;
     public int maxSteps = 1000;
     public float timeStep = 0.1f;
 
@@ -55,23 +55,35 @@ public class DrawShipPath : MonoBehaviour
 
             //break if line collides with planet
             RaycastHit hit;
-            if (Physics.Raycast(virtualBody.position, virtualBody.velocity.normalized, out hit, virtualBody.velocity.magnitude * timeStep, planetMask))
+            if (Physics.Raycast(virtualBody.position, virtualBody.velocity.normalized, out hit, virtualBody.velocity.magnitude * timeStep, rayMask) && Application.isPlaying)
             {
-                //impact point
-                drawPoints[step] = hit.point;
-                //reduce the array size to the step count
-                System.Array.Resize(ref drawPoints, step + 1);
-
-                //Temp
-                float t = step * timeStep;
-                if(timeToImpact != (int)t)
+                if (hit.transform.gameObject.layer == LayerMask.NameToLayer("Ship"))
                 {
-                    timeToImpact = (int)t;
-                    Debug.Log("Impact in: " + timeToImpact + " Seconds");
-                }
-                
+                    //impact point
+                    drawPoints[step] = ship.transform.position;
+                    //reduce the array size to the step count
+                    System.Array.Resize(ref drawPoints, step + 1);
 
-                break;
+                    break;
+                }
+                else if(hit.transform.gameObject.layer == LayerMask.NameToLayer("Planet"))
+                {
+                    //impact point
+                    drawPoints[step] = hit.point;
+                    //reduce the array size to the step count
+                    System.Array.Resize(ref drawPoints, step + 1);
+
+                    //Temp
+                    /*
+                    float t = step * timeStep;
+                    if (timeToImpact != (int)t)
+                    {
+                        timeToImpact = (int)t;
+                        Debug.Log("Impact in: " + timeToImpact + " Seconds");
+                    }
+                    */
+                    break;
+                }
             }
 
             //update position
