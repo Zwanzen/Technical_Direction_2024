@@ -55,7 +55,7 @@ public class DrawShipPath : MonoBehaviour
 
             //break if line collides with planet
             RaycastHit hit;
-            if (Physics.Raycast(virtualBody.position, virtualBody.velocity.normalized, out hit, virtualBody.velocity.magnitude * timeStep, rayMask) && Application.isPlaying)
+            if (Physics.Raycast(virtualBody.position, virtualBody.velocity.normalized, out hit, virtualBody.velocity.magnitude * timeStep, rayMask))
             {
                 if (hit.transform.gameObject.layer == LayerMask.NameToLayer("Ship"))
                 {

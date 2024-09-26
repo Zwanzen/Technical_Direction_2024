@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
 using Cinemachine;
+using Unity.Mathematics;
+using UnityEngine.UI;
 
 public class ShipController : GravityObject
 {
@@ -12,14 +14,13 @@ public class ShipController : GravityObject
 
     public Transform moon;
 
+    public Slider thrustSlider;
     public ShipDirectionSetter Initial;
     public Rigidbody rb;
 
+    public Vector3 cameraOffset;
     public float thrustStrength = 10f;
     public float turnSpeed = 1f;
-
-    private float rotationX;
-    private float rotationY;
 
     void FixedUpdate()
     {
@@ -39,12 +40,17 @@ public class ShipController : GravityObject
         }
         */
 
-        if (Input.GetKey(KeyCode.Space))
+        if (Input.GetMouseButton(0))
         {
-            rb.AddForce(transform.up * thrustStrength, ForceMode.Acceleration);
+            rb.AddForce(transform.up * thrustStrength * thrustSlider.value, ForceMode.Acceleration);
+        }
+        else
+        {
+            thrustSlider.value -= 1f * Time.fixedDeltaTime;
         }
 
         HandleRotation();
+
     }
 
     private void Update()
@@ -54,18 +60,20 @@ public class ShipController : GravityObject
 
     private void HandleRotation()
     {
-        // Store the mouse input as rotations
-        Vector2 mouseInput = MouseInput();
-        rotationX += mouseInput.x * turnSpeed;
-        rotationY += mouseInput.y * turnSpeed;
+        // Get input for yaw, pitch, and roll
+        float yaw = -Input.GetAxisRaw("Horizontal"); // A/D or Left/Right arrow keys
+        float pitch = Input.GetAxisRaw("Vertical"); // W/S or Up/Down arrow keys
+        float roll = Input.GetAxisRaw("Roll"); // Q/E
 
-        // Get the camera's forward and right directions
-        Vector3 cameraForward = cam.transform.forward;
-        Vector3 cameraRight = cam.transform.right;
+        // Calculate the local torque to apply
+        // Reordered to feel better, need to rename variables
+        Vector3 localTorque = new Vector3(pitch, roll, yaw) * turnSpeed;
 
-        // Calculate the target rotation based on the camera's orientation
-        Quaternion targetRotation = Quaternion.LookRotation(cameraForward, cam.transform.up) * Quaternion.Euler(-rotationY, rotationX, 0);
-        rb.rotation = targetRotation;
+        // Transform the local torque to world space
+        Vector3 worldTorque = transform.TransformDirection(localTorque);
+
+        // Apply the torque to the rigidbody
+        rb.AddTorque(worldTorque, ForceMode.Acceleration);
     }
 
     private Quaternion GyroscopicAligner()
@@ -109,12 +117,7 @@ public class ShipController : GravityObject
         cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, targetRotation, 5f * Time.deltaTime);
 
         // Set the camera's position to be behind the ship
-        cam.transform.position = transform.position + (-directionToMoon * 10);
-    }
-
-    private Vector2 MouseInput()
-    {
-        return new Vector2(Input.GetAxisRaw("Mouse X"), Input.GetAxisRaw("Mouse Y"));
+        cam.transform.position = transform.position + (-directionToMoon * cameraOffset.z) + (cam.transform.right.normalized * cameraOffset.x) + (cam.transform.up.normalized * cameraOffset.y);
     }
 
     private void Start()
@@ -122,9 +125,6 @@ public class ShipController : GravityObject
         InitRigidbody();
         SetVelocity(Initial.Velocity());
         cam = Camera.main;
-
-        // Lock the cursor to the center of the screen
-        Cursor.lockState = CursorLockMode.Locked;
     }
 
     void InitRigidbody()
