@@ -18,7 +18,11 @@ public class ShipDirectionSetter : MonoBehaviour
 
     private void Update()
     {
+        if(Application.isPlaying)
+            return;
+
         transform.position = ship.position;
+        ship.rotation = transform.rotation;
     }
 
     private void OnDrawGizmosSelected()

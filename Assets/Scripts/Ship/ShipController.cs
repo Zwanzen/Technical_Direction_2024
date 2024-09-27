@@ -20,26 +20,23 @@ public class ShipController : GravityObject
 
     public Vector3 cameraOffset;
     public float thrustStrength = 10f;
-    public float turnSpeed = 1f;
+    public float shipTurnSpeed = 1f;
+    public float cameraTurnSpeed = 5f;
 
-    void FixedUpdate()
+
+    private void Start()
+    {
+        InitializeShip();
+    }
+
+    private void FixedUpdate()
     {
         // Gravity
         Vector3 gravity = NBodySimulation.CalculateAcceleration(rb.position);
         rb.AddForce(gravity, ForceMode.Acceleration);
 
-        /*
-        // Thrusters
-        Vector3 thrustDir = transform.TransformVector(thrusterInput);
-        rb.AddForce(thrustDir * thrustStrength, ForceMode.Acceleration);
 
-        
-        if (numCollisionTouches == 0)
-        {
-            rb.MoveRotation(smoothedRot);
-        }
-        */
-
+        // Inputs should not be handled here, Need to change this
         if (Input.GetMouseButton(0))
         {
             rb.AddForce(transform.up * thrustStrength * thrustSlider.value, ForceMode.Acceleration);
@@ -58,6 +55,35 @@ public class ShipController : GravityObject
         HandleCamera();
     }
 
+    private Vector3 DirectionToMoon()
+    {
+        return (moon.position - transform.position).normalized;
+    }
+
+
+    // Take the velocity of the ship and project it onto the plane defined by the direction to the moon
+    // This gives me the velocity of the ship relative to the moon
+    // This is both used in runtime and in the editor, If statement makes sure it uses the correct projection
+    private Vector3 VelocityProjected()
+    {
+        if (Application.isPlaying)
+        {
+            return Vector3.ProjectOnPlane(rb.velocity, DirectionToMoon());
+        }
+
+        return Vector3.ProjectOnPlane(Initial.Velocity(), DirectionToMoon());
+    }
+
+
+    // Calculate the target rotation that aligns the up direction to velocity projected on the direction to the moon
+    // And the forward direction to the direction to the moon
+    // Need to add some sort of controlable/dynamic offset to the camera
+    // And rename the method when I do
+    private Quaternion TargetCameraRotation()
+    {
+        return Quaternion.LookRotation(DirectionToMoon(), VelocityProjected());
+    }
+
     private void HandleRotation()
     {
         // Get input for yaw, pitch, and roll
@@ -67,7 +93,7 @@ public class ShipController : GravityObject
 
         // Calculate the local torque to apply
         // Reordered to feel better, need to rename variables
-        Vector3 localTorque = new Vector3(pitch, roll, yaw) * turnSpeed;
+        Vector3 localTorque = new Vector3(pitch, roll, yaw) * shipTurnSpeed;
 
         // Transform the local torque to world space
         Vector3 worldTorque = transform.TransformDirection(localTorque);
@@ -78,17 +104,11 @@ public class ShipController : GravityObject
 
     private Quaternion GyroscopicAligner()
     {
-        // Calculate the direction from the ship to the moon
-        Vector3 directionToMoon = (moon.position - transform.position).normalized;
-
         // Calculate the target rotation that aligns the ship's down direction with the direction to the moon
-        Quaternion alignDownToMoon = Quaternion.FromToRotation(-transform.up, directionToMoon);
-
-        // Calculate the projected direction of the velocity onto the plane perpendicular to the direction to the moon
-        Vector3 velocityProjected = Vector3.ProjectOnPlane(rb.velocity, directionToMoon);
+        Quaternion alignDownToMoon = Quaternion.FromToRotation(-transform.up, DirectionToMoon());
 
         // Calculate the target rotation that aligns the ship's forward direction with the velocity projected onto the plane
-        Quaternion alignForwardToCameraUp = Quaternion.FromToRotation(transform.forward, velocityProjected);
+        Quaternion alignForwardToCameraUp = Quaternion.FromToRotation(transform.forward, VelocityProjected());
 
         // Combine the rotations
         Quaternion targetRotation = alignDownToMoon * alignForwardToCameraUp * transform.rotation;
@@ -98,33 +118,34 @@ public class ShipController : GravityObject
 
     private void HandleCamera()
     {
-        // Calculate the direction from the ship to the moon
-        Vector3 directionToMoon = (moon.position - transform.position).normalized;
-
-        // Calculate the projected direction of the velocity onto the plane perpendicular to the direction to the moon
-        Vector3 velocityProjected = Vector3.ProjectOnPlane(rb.velocity, directionToMoon);
-
-        // Calculate the target rotation that aligns the camera's up direction with the projected velocity
-        Quaternion alignUpToVelocity = Quaternion.FromToRotation(cam.transform.up, velocityProjected);
-
-        // Calculate the target rotation that aligns the camera's forward direction with the direction to the moon
-        Quaternion alignForwardToMoon = Quaternion.LookRotation(directionToMoon, velocityProjected);
-
-        // Combine the rotations
-        Quaternion targetRotation = alignForwardToMoon * alignUpToVelocity;
+        // Set the camera's position, I was really tired when I wrote this
+        cam.transform.position = transform.position + (-DirectionToMoon() * cameraOffset.z) + (cam.transform.right.normalized * cameraOffset.x) + (cam.transform.up.normalized * cameraOffset.y);
 
         // Smoothly interpolate the camera's current rotation towards the target rotation
-        cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, targetRotation, 5f * Time.deltaTime);
-
-        // Set the camera's position to be behind the ship
-        cam.transform.position = transform.position + (-directionToMoon * cameraOffset.z) + (cam.transform.right.normalized * cameraOffset.x) + (cam.transform.up.normalized * cameraOffset.y);
+        cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, TargetCameraRotation(), cameraTurnSpeed * Time.deltaTime);
     }
 
-    private void Start()
+    private void InitializeCamera()
     {
+        cam = Camera.main;
+
+        // Set the camera's position, I was really tired when I wrote this
+        cam.transform.position = transform.position + (-DirectionToMoon() * cameraOffset.z) + (cam.transform.right.normalized * cameraOffset.x) + (cam.transform.up.normalized * cameraOffset.y);
+
+        // Instantly set the camera's rotation to the target rotation
+        cam.transform.rotation = TargetCameraRotation();
+    }
+
+    private void InitializeShip()
+    {
+        // Get and Set the initial velocity of the ship
         InitRigidbody();
         SetVelocity(Initial.Velocity());
-        cam = Camera.main;
+
+        // Position the camera relative to the ships rigidbody
+        // Has to be below InitRigidbody()
+        InitializeCamera();
+
     }
 
     void InitRigidbody()
