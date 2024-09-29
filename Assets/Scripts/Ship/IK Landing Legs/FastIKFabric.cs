@@ -7,6 +7,7 @@ public class FastIKFabric : MonoBehaviour
     public Transform target; // The target the IK chain will try to reach
     public Transform pole; // Optional pole to control the bending direction
     public int chainLength = 2; // Number of bones in the IK chain
+    public bool useYAxisAsForward = false; // Option to use Y axis as forward direction
 
     private Transform[] bones;
     private Vector3[] positions;
@@ -99,7 +100,14 @@ public class FastIKFabric : MonoBehaviour
         for (int i = 0; i < bones.Length - 1; i++)
         {
             bones[i].position = positions[i];
-            bones[i].rotation = Quaternion.LookRotation(positions[i + 1] - positions[i]);
+            if (useYAxisAsForward)
+            {
+                bones[i].rotation = Quaternion.LookRotation(positions[i + 1] - positions[i], bones[i].up) * Quaternion.Euler(90, 0, 0);
+            }
+            else
+            {
+                bones[i].rotation = Quaternion.LookRotation(positions[i + 1] - positions[i]);
+            }
         }
         bones[bones.Length - 1].position = positions[bones.Length - 1];
     }
@@ -132,3 +140,4 @@ public class FastIKFabric : MonoBehaviour
         }
     }
 }
+
