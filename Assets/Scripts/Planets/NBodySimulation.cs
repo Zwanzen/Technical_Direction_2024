@@ -10,7 +10,6 @@ public class NBodySimulation : MonoBehaviour {
 
         bodies = FindObjectsOfType<CelestialBody> ();
         Time.fixedDeltaTime = Universe.physicsTimeStep;
-        Debug.Log ("Setting fixedDeltaTime to: " + Universe.physicsTimeStep);
     }
 
     void FixedUpdate () {

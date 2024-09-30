@@ -28,16 +28,32 @@ public class ShipController : GravityObject
     [Space(20)]
     [Header("Landing Legs")]
     [SerializeField] private Transform[] IKTargets = new Transform[3];
-    [SerializeField] private Transform[] ArmatureOriginPoints = new Transform[3]; // used to calculate the down direction from the legs
+    [SerializeField] private FastIKFabric[] IK = new FastIKFabric[3];
     [Space(5)]
     [SerializeField] private LayerMask groundLayer;
-    [SerializeField] private float legcastDistance = 3f;
-    [SerializeField] private float legcastHeight = 1f;
+    [SerializeField] private float legCastDistance = 3f;
+    [SerializeField] private float legCastHeight = 1f;
+    [SerializeField] private float hoverDistance = 1.2f;
     [Space(5)]
-    [SerializeField] private float landingCastDistance = 1f;
-    [SerializeField] private float landingSpringForce = 10f;
+    [SerializeField] private float landingCheckDistance = 1f;
+    [SerializeField] private float landingSpringForce = 5f;
+    [SerializeField] private float springDampener = 3f;
+    [Space(5)]
+    [SerializeField] private float stepDist = 0.25f;
+    [SerializeField] private float legMoveSpeed = 0.5f;
 
-    private Transform[] IKStartTransformCopies = new Transform[3];
+    private Transform[] IKTargetCopies = new Transform[3];
+    private Transform[] IKStartPositions = new Transform[3];
+    private Vector3[] IKOldPos = new Vector3[3];
+    private float[] legTargetTimer1 = new float[3];
+    private float[] legTargetTimer2 = new float[3];
+    private bool skipStep = true;
+
+    private bool isGrounded = false;
+
+    [Space(20)]
+    [Header("Particles")]
+    [SerializeField] private ParticleSystem thruster;
 
 
 
@@ -62,6 +78,9 @@ public class ShipController : GravityObject
         {
             thrustSlider.value -= 1f * Time.fixedDeltaTime;
         }
+
+        var emission = thruster.emission;
+        emission.rateOverTime = Mathf.Lerp(0, 100, thrustSlider.value);
 
         HandleRotation();
 
@@ -126,6 +145,22 @@ public class ShipController : GravityObject
 
         // Apply the torque to the rigidbody
         rb.AddTorque(worldTorque, ForceMode.Acceleration);
+
+        // slowly align the ships up rotation to the direction to the moon
+        if (isGrounded)
+        {
+            // get the surface normal of the ground
+            RaycastHit hit;
+            Ray ray = new Ray(transform.position, -transform.up);
+            if (Physics.Raycast(ray, out hit, 10f, groundLayer))
+            {
+                // Calculate the target rotation that aligns the ship's down direction with the direction to the moon
+                Quaternion alignToMoonSurface = Quaternion.FromToRotation(transform.up, hit.normal);
+
+                // rotate the ship towards the target rotation
+                transform.rotation = Quaternion.RotateTowards(transform.rotation, alignToMoonSurface, Time.fixedDeltaTime * 40f);
+            }
+        }
     }
 
     private Quaternion GyroscopicAligner()
@@ -157,16 +192,72 @@ public class ShipController : GravityObject
         for (int i = 0; i < 3; i++)
         {
             RaycastHit hit;
-            Transform currentCopy = IKStartTransformCopies[i];
+            Ray ray = new Ray(IKStartPositions[i].position + (IKStartPositions[i].up * legCastHeight), -IKStartPositions[i].up);
+
+            Debug.DrawRay(ray.origin, ray.direction * (legCastDistance + legCastHeight), Color.magenta);
 
             // If the ray hits the ground, set the IK target to the hit point, else set it to the start position
-            if (Physics.Raycast(currentCopy.position + (currentCopy.up * legcastHeight), -transform.up, out hit, legcastDistance + legcastHeight, groundLayer))
+            if (Physics.Raycast(ray, out hit, legCastDistance + legCastHeight, groundLayer) && isGrounded)
             {
-                IKTargets[i].position = hit.point;
+                // reset other timer
+                for (int j = 0; j < 3; j++)
+                {
+                    legTargetTimer2[j] = 0;
+                }
+
+                // if landing gear needs new footing based on distance, set a new one
+                if (Vector3.Distance(IKTargetCopies[i].position, hit.point) > stepDist)
+                {
+                    Vector3 dir = (hit.point - IKTargetCopies[i].position).normalized;
+
+                    IKTargetCopies[i].position = hit.point + dir * 0.5f;
+                   
+                    legTargetTimer1[i] = 0;
+                    IKOldPos[i] = IKTargets[i].position;
+                }
+
+                if (legTargetTimer1[i] < 1 && !skipStep)
+                {
+                    // Slowly move the copies of the IK targets to the hit point
+                    Vector3 targetPos = Vector3.Lerp(IKOldPos[i], IKTargetCopies[i].position, legTargetTimer1[i]);
+                    targetPos += (transform.up * 1f) * Mathf.Sin(legTargetTimer1[i] * Mathf.PI);
+                    IKTargets[i].position = targetPos;
+                    legTargetTimer1[i] += legMoveSpeed * Time.deltaTime;
+                }
+                else if(legTargetTimer1[i] < 1)
+                {
+                    IKTargets[i].position = Vector3.Lerp(IKOldPos[i], IKTargetCopies[i].position, legTargetTimer1[i]);
+                    legTargetTimer1[i] += legMoveSpeed * Time.deltaTime;
+                }
+                else
+                {
+                    skipStep = false;
+                }
             }
             else
             {
-                IKTargets[i].position = currentCopy.position;
+                // reset other timer
+                for (int j = 0; j < 3; j++)
+                {
+                    legTargetTimer1[j] = 0;
+                }
+
+                skipStep = true;
+
+                if(legTargetTimer2[i] < 1)
+                {
+                    // Slowly move the IK target back to the start position
+                    IKTargets[i].position = Vector3.Lerp(IKTargets[i].position, IKStartPositions[i].position, legTargetTimer2[i]);
+                    legTargetTimer2[i] += legMoveSpeed * Time.deltaTime;
+                }
+                else
+                {
+                    IKTargets[i].position = IKStartPositions[i].position;
+                }
+
+
+                // just make sure the legs always get new footing
+                IKTargetCopies[i].position = Vector3.zero;
             }
         }
     }
@@ -176,19 +267,43 @@ public class ShipController : GravityObject
     {
         // cast a ray to see if the ship is close enough to the ground to land
         RaycastHit hit;
-        Vector3 rayStartOffset = -transform.up * 2f; // sphere has a radius of 2, start the ray at that distance
-        if (Physics.Raycast(rayStartOffset + transform.position, -transform.up, out hit, landingCastDistance, groundLayer))
+        Vector3 rayStartOffset = -transform.up; // sphere has a radius of 2, start the ray at that distance
+        Ray ray = new Ray(rayStartOffset + transform.position, -transform.up);
+
+        if (Physics.Raycast(ray, out hit, landingCheckDistance, groundLayer) && thrustSlider.value < 0.2f)
         {
-            // if the ship is close enough, apply force depending on the distance to the ground
-            float distance = Vector3.Distance(transform.position, hit.point);
-            rb.AddForce(transform.up * distance * landingSpringForce, ForceMode.Acceleration);
+            isGrounded = true;
 
-            // also add forces to stop the ship from rotating
-            rb.AddTorque(-rb.angularVelocity * landingSpringForce, ForceMode.Acceleration);
+            // from last ga3 course
+            Vector3 vel = rb.velocity;
 
+            Vector3 otherVel = Vector3.zero;
+            Rigidbody hitBody = hit.rigidbody;
+            if (hitBody != null)
+            {
+                otherVel = hitBody.velocity;
+            }
+
+            float relDirVel = Vector3.Dot(DirectionToMoon(), vel);
+            float otherDirVel = Vector3.Dot(DirectionToMoon(), otherVel);
+
+            float relVel = relDirVel - otherDirVel;
+
+            float x = hit.distance - hoverDistance;
+
+            float springForce = (x * landingSpringForce) - (relVel * springDampener);
+            rb.AddForce(DirectionToMoon() * springForce);
+            // ----
+
+            // add a force to stop the ship from sliding
+            rb.AddForce(-VelocityProjected(), ForceMode.Acceleration);
+        }
+        else
+        {
+            isGrounded = false;
         }
 
-        Debug.DrawLine(rayStartOffset + transform.position, -transform.up, color:Color.magenta);
+        Debug.DrawRay(ray.origin, ray.direction * landingCheckDistance, Color.magenta);
     }
 
     private void InitializeCamera()
@@ -221,10 +336,16 @@ public class ShipController : GravityObject
     {
         for (int i = 0; i < 3; i++)
         {
-            IKStartTransformCopies[i] = new GameObject().transform;
-            IKStartTransformCopies[i].parent = transform;
-            IKStartTransformCopies[i].position = IKTargets[i].position;
-            IKStartTransformCopies[i].rotation = transform.rotation;
+            IKTargets[i].position = IK[i].transform.position;
+
+            IKTargetCopies[i] = new GameObject().transform;
+            IKTargetCopies[i].position = IKTargets[i].position;
+            IKTargetCopies[i].rotation = transform.rotation;
+
+            IKStartPositions[i] = new GameObject().transform;
+            IKStartPositions[i].parent = transform;
+            IKStartPositions[i].position = IK[i].transform.position;
+            IKStartPositions[i].rotation = transform.rotation;
         }
     }
 
