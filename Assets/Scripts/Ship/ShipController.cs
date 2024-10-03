@@ -1,11 +1,5 @@
-using System.Collections;
-using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
-using Cinemachine;
-using Unity.Mathematics;
 using UnityEngine.UI;
-using System;
 
 public class ShipController : GravityObject
 {
@@ -23,6 +17,12 @@ public class ShipController : GravityObject
     public float thrustStrength = 10f;
     public float shipTurnSpeed = 1f;
     public float cameraTurnSpeed = 5f;
+
+    [Space(20)]
+    [Header("Fuel")]
+    [SerializeField] private Image fuelSlider;
+    [SerializeField] private float fuel = 1000f;
+    private float maxFuel;
 
     // LANDING LEGS CONTROLLER
     [Space(20)]
@@ -54,6 +54,11 @@ public class ShipController : GravityObject
     [Space(20)]
     [Header("Particles")]
     [SerializeField] private ParticleSystem thruster;
+    [SerializeField] private ParticleSystem explosion;
+
+
+    // INPUT
+    private bool isThrusting = false;
 
 
 
@@ -68,29 +73,25 @@ public class ShipController : GravityObject
         Vector3 gravity = NBodySimulation.CalculateAcceleration(rb.position);
         rb.AddForce(gravity, ForceMode.Acceleration);
 
-
-        // Inputs should not be handled here, Need to change this
-        if (Input.GetMouseButton(0))
-        {
-            rb.AddForce(transform.up * thrustStrength * thrustSlider.value, ForceMode.Acceleration);
-        }
-        else
-        {
-            thrustSlider.value -= 1f * Time.fixedDeltaTime;
-        }
-
-        var emission = thruster.emission;
-        emission.rateOverTime = Mathf.Lerp(0, 100, thrustSlider.value);
-
         HandleRotation();
-
         HandleLanding();
+
+        HandleThrust();
     }
 
     private void Update()
     {
         HandleCamera();
         HandleIKLegs();
+
+        InputHandler();
+
+
+        // does not change based on fps
+        fuelSlider.fillAmount = fuel / maxFuel;
+
+        var emission = thruster.emission;
+        emission.rateOverTime = Mathf.Lerp(0, 100, thrustSlider.value);
     }
 
     // All input should be handled in the update function
@@ -98,7 +99,16 @@ public class ShipController : GravityObject
     // It will activate every frame, while FixedUpdate will only activate every physics update
     private void InputHandler()
     {
+        if (Input.GetMouseButton(0) && thrustSlider.value > 0f)
+        {
+            isThrusting = true;
+        }
+        else
+        {
+            isThrusting = false;
+        }
 
+        // rotation here:
     }
 
     // Calculate the direction to the moon
@@ -129,6 +139,29 @@ public class ShipController : GravityObject
     {
         return Quaternion.LookRotation(DirectionToMoon(), VelocityProjected());
     }
+
+    private void HandleThrust()
+    {
+        if (isThrusting && fuel > 0)
+        {
+            // the fuel is equal to the force applied
+            // so if the force is greater than the fuel, set the force to the fuel
+            var force = thrustStrength * thrustSlider.value;
+            if (force > fuel)
+            {
+                force = fuel;
+            }
+
+            // add the force, then subtract from the fuel for next tick
+            rb.AddForce(transform.up * force, ForceMode.Acceleration);
+            fuel -= force;
+        }
+        else
+        {
+            thrustSlider.value -= 1f * Time.fixedDeltaTime;
+        }
+    }
+
     private void HandleRotation()
     {
         // Get input for yaw, pitch, and roll
@@ -154,8 +187,8 @@ public class ShipController : GravityObject
             Ray ray = new Ray(transform.position, -transform.up);
             if (Physics.Raycast(ray, out hit, 10f, groundLayer))
             {
-                // Calculate the target rotation that aligns the ship's down direction with the direction to the moon
-                Quaternion alignToMoonSurface = Quaternion.FromToRotation(transform.up, hit.normal);
+                // Calculate the target rotation that alignes the ship's up direction with the normal of the ground
+                Quaternion alignToMoonSurface = Quaternion.FromToRotation(transform.up, hit.normal) * transform.rotation;
 
                 // rotate the ship towards the target rotation
                 transform.rotation = Quaternion.RotateTowards(transform.rotation, alignToMoonSurface, Time.fixedDeltaTime * 40f);
@@ -297,6 +330,10 @@ public class ShipController : GravityObject
 
             // add a force to stop the ship from sliding
             rb.AddForce(-VelocityProjected(), ForceMode.Acceleration);
+
+            // debug
+            // draw the hit normal
+            Debug.DrawRay(hit.point, hit.normal, Color.green);
         }
         else
         {
@@ -360,5 +397,25 @@ public class ShipController : GravityObject
         InitializeCamera();
         InitializeLegs();
 
+        maxFuel = fuel;
+
+    }
+
+    private void DIE()
+    {
+        // U dies
+
+        // spawn explosion
+        ParticleSystem p = Instantiate(explosion, transform.position, Quaternion.identity);
+        p.Play();
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        // if the ship collides with the ground, and the impact is hard enough, spawn an explosion
+        if (collision.relativeVelocity.magnitude > 5f)
+        {
+            DIE();
+        }
     }
 }
