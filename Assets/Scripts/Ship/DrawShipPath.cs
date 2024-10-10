@@ -142,8 +142,6 @@ public class DrawShipPath : MonoBehaviour
             line.startColor = pathColour;
             line.endColor = pathColour;
             line.widthMultiplier = width;
-            line.material.mainTextureScale = new Vector2(1f / width, 1.0f);
-
 
         }
         else
