@@ -12,9 +12,16 @@ public class DrawShipPath : MonoBehaviour
 
     public bool usePhysicsTimeStep;
 
-
+    private LineRenderer line;
+    public Color pathColour = Color.clear;
     public float width = 100;
     public bool useThickLines;
+
+    public ParticleSystem ParticleTrail;
+    public float particleEmissionRate = 1;
+    public int particleStep = 10;
+    private float particleTimer = 0;
+    private int particleIndex = 0;
 
     //temp
     private int timeToImpact;
@@ -22,6 +29,8 @@ public class DrawShipPath : MonoBehaviour
     private void Awake()
     {
         ship = FindAnyObjectByType<ShipController>();
+        ParticleTrail = GetComponentInChildren<ParticleSystem>();
+        line = GetComponent<LineRenderer>();
     }
 
     private void FixedUpdate()
@@ -39,6 +48,34 @@ public class DrawShipPath : MonoBehaviour
             DrawOrbit();
         }
 
+        //DrawDots();
+
+    }
+
+    void DrawDots()
+    {
+        // spawn a particle on every index of line position at a speed
+        particleTimer += Time.deltaTime;
+        if (particleTimer >= particleEmissionRate)
+        {
+            // get the and check the current index of the line
+            if (line.positionCount >= particleIndex + particleStep)
+            {
+                ParticleTrail.transform.position = line.GetPosition(particleIndex);
+                ParticleTrail.Emit(1);
+                particleIndex += particleStep;
+            }
+            else
+            {
+
+                ParticleTrail.transform.position = line.GetPosition(line.positionCount - 1);
+                ParticleTrail.Emit(1);
+                particleIndex = 0;
+            }
+
+
+            particleTimer = 0;
+        }
     }
 
     void DrawOrbit()
@@ -96,17 +133,18 @@ public class DrawShipPath : MonoBehaviour
         }
 
         // draw paths
-        var pathColour = Color.red; //
-
         if (useThickLines)
         {
-            var lineRenderer = this.GetComponent<LineRenderer>();
-            lineRenderer.enabled = true;
-            lineRenderer.positionCount = drawPoints.Length;
-            lineRenderer.SetPositions(drawPoints);
-            lineRenderer.startColor = pathColour;
-            lineRenderer.endColor = pathColour;
-            lineRenderer.widthMultiplier = width;
+            line = this.GetComponent<LineRenderer>();
+            line.enabled = true;
+            line.positionCount = drawPoints.Length;
+            line.SetPositions(drawPoints);
+            line.startColor = pathColour;
+            line.endColor = pathColour;
+            line.widthMultiplier = width;
+            line.material.mainTextureScale = new Vector2(1f / width, 1.0f);
+
+
         }
         else
         {
@@ -116,13 +154,14 @@ public class DrawShipPath : MonoBehaviour
             }
 
             // Hide renderer
-            var lineRenderer = this.GetComponent<LineRenderer>();
-            if (lineRenderer)
+            line = this.GetComponent<LineRenderer>();
+            if (line)
             {
-                lineRenderer.enabled = false;
+                line.enabled = false;
             }
 
         }
+
     }
 
     private Vector3 CalculateAcceleration(VirtualBody body)
