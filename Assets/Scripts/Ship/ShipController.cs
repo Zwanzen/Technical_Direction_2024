@@ -4,6 +4,8 @@ using UnityEngine.UI;
 
 public class ShipController : MonoBehaviour
 {
+    public DrawShipPath pathDrawer;
+
     public bool inMenue = false;
     private bool dead = false;
 
@@ -122,6 +124,28 @@ public class ShipController : MonoBehaviour
         {
             var emission = thruster.emission;
             emission.rateOverTime = Mathf.Lerp(0, 100, thrustSlider.value);
+        }
+
+        if(fuel <= 0 && !dead)
+        {
+            // if in orbit: die
+            if(pathDrawer.inOrbit)
+            {
+                DIE();
+            }
+
+            // if lost in space: die
+            if (Vector3.Distance(transform.position, moon.position) > 200f)
+            {
+                DIE();
+            }
+
+            // if no movement, and time to impact is less than 10 seconds: die 
+            if (pathDrawer.timeToImpact < 10 && rb.velocity.magnitude < 3f)
+            {
+                DIE();
+            }
+
         }
 
     }
@@ -485,6 +509,7 @@ public class ShipController : MonoBehaviour
 
         // rotate the ship to match the initial
         transform.rotation = Initial.transform.rotation;
+        rb.rotation = Initial.transform.rotation;
     }
 
     private void DIE()

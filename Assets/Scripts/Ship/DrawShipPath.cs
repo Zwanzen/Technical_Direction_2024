@@ -23,8 +23,12 @@ public class DrawShipPath : MonoBehaviour
     private float particleTimer = 0;
     private int particleIndex = 0;
 
-    //temp
-    private int timeToImpact;
+    // checks
+    public int timeToImpact;
+    public bool lostInSpace;
+    public bool inOrbit;
+
+
 
     private void Awake()
     {
@@ -101,6 +105,8 @@ public class DrawShipPath : MonoBehaviour
                     //reduce the array size to the step count
                     System.Array.Resize(ref drawPoints, step + 1);
 
+                    inOrbit = true;
+                    timeToImpact = 0;
                     break;
                 }
                 else if(hit.transform.gameObject.layer == LayerMask.NameToLayer("Planet"))
@@ -110,17 +116,24 @@ public class DrawShipPath : MonoBehaviour
                     //reduce the array size to the step count
                     System.Array.Resize(ref drawPoints, step + 1);
 
-                    //Temp
-                    /*
+                    
+                    
                     float t = step * timeStep;
                     if (timeToImpact != (int)t)
                     {
                         timeToImpact = (int)t;
-                        Debug.Log("Impact in: " + timeToImpact + " Seconds");
                     }
-                    */
+
+                    inOrbit = false;
                     break;
                 }
+                lostInSpace = false;
+            }
+            else
+            {
+                timeToImpact = 0;
+                lostInSpace = true;
+                inOrbit = false;
             }
 
             //update position
