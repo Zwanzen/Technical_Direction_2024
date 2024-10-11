@@ -11,6 +11,8 @@ public class LandingPointManager : MonoBehaviour
     [SerializeField] private GameObject landingPointPrefab;
     [SerializeField] bool debug = false;
 
+    private GameObject landingPoint;
+
     private void Start()
     {
         GenerateLandingPoint();
@@ -23,10 +25,15 @@ public class LandingPointManager : MonoBehaviour
         RaycastHit hit;
         if (Physics.Raycast(moon.position + randomPoint, -randomPoint, out hit, outerRadius, moonLayer))
         {
-            // if the raycast hits the moon, instantiate a landing point at the hit point
-            GameObject landingPoint = Instantiate(landingPointPrefab, hit.point, Quaternion.identity);
+            if(landingPoint == null)
+            {
+                // if landing point doesn't exist, create one
+                landingPoint = Instantiate(landingPointPrefab, hit.point, Quaternion.identity);
+            }
+
             // align the landing point's up direction with the direction from the moon to the hit point
             landingPoint.transform.up = hit.point - moon.position;
+            landingPoint.transform.position = hit.point;
         }
     }
 

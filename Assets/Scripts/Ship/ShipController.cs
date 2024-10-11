@@ -1,10 +1,15 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class ShipController : GravityObject
 {
+    public bool inMenue = false;
+    private bool dead = false;
+
     public bool GyroscopicStabilization = true;
 
+    private GameHandler game;
     private Camera cam;
 
     public Transform moon;
@@ -49,7 +54,8 @@ public class ShipController : GravityObject
     private float[] legTargetTimer2 = new float[3];
     private bool skipStep = true;
 
-    private bool isGrounded = false;
+    [HideInInspector]
+    public bool isGrounded = false;
 
     [Space(20)]
     [Header("Particles")]
@@ -59,12 +65,23 @@ public class ShipController : GravityObject
 
     // INPUT
     private bool isThrusting = false;
+    private bool isTurning = false;
 
 
 
     private void Start()
     {
+        if (SceneManager.GetActiveScene().name == "GameScene")
+        {
+            inMenue = false;
+        }
+        else
+        {
+            inMenue = true;
+        }
+
         InitializeShip();
+        game = FindObjectOfType<GameHandler>();
     }
 
     private void FixedUpdate()
@@ -73,25 +90,39 @@ public class ShipController : GravityObject
         Vector3 gravity = NBodySimulation.CalculateAcceleration(rb.position);
         rb.AddForce(gravity, ForceMode.Acceleration);
 
-        HandleRotation();
-        HandleLanding();
-
-        HandleThrust();
+        if (!inMenue && !dead)
+        {
+            HandleRotation();
+            HandleLanding();
+            HandleThrust();
+        }
     }
 
     private void Update()
     {
-        HandleCamera();
+
+        if (!inMenue)
+        {
+            HandleCamera();
+            InputHandler();
+        }
+
         HandleIKLegs();
-
-        InputHandler();
-
 
         // does not change based on fps
         fuelSlider.fillAmount = fuel / maxFuel;
 
-        var emission = thruster.emission;
-        emission.rateOverTime = Mathf.Lerp(0, 100, thrustSlider.value);
+        if(fuel <= 0)
+        {
+            var emission = thruster.emission;
+            emission.rateOverTime = 0;
+        }
+        else
+        {
+            var emission = thruster.emission;
+            emission.rateOverTime = Mathf.Lerp(0, 100, thrustSlider.value);
+        }
+
     }
 
     // All input should be handled in the update function
@@ -108,7 +139,14 @@ public class ShipController : GravityObject
             isThrusting = false;
         }
 
-        // rotation here:
+        if(Input.GetMouseButton(1))
+        {
+            isTurning = true;
+        }
+        else
+        {
+            isTurning = false;
+        }
     }
 
     // Calculate the direction to the moon
@@ -129,15 +167,6 @@ public class ShipController : GravityObject
         }
 
         return Vector3.ProjectOnPlane(Initial.Velocity(), DirectionToMoon());
-    }
-
-    // Calculate the target rotation that aligns the up direction to velocity projected on the direction to the moon
-    // And the forward direction to the direction to the moon
-    // Need to add some sort of controlable/dynamic offset to the camera
-    // And rename the method when I do
-    private Quaternion TargetCameraRotation()
-    {
-        return Quaternion.LookRotation(DirectionToMoon(), VelocityProjected());
     }
 
     private void HandleThrust()
@@ -196,6 +225,7 @@ public class ShipController : GravityObject
         }
     }
 
+    /* may not be needed
     private Quaternion GyroscopicAligner()
     {
         // Calculate the target rotation that aligns the ship's down direction with the direction to the moon
@@ -209,14 +239,39 @@ public class ShipController : GravityObject
 
         return targetRotation;
     }
+    */
+
+    // what even is this
+    // could add forward offset based on speed to be more behind or above when needed
+    private Vector3 CalculateCameraPos()
+    {
+        return transform.position + (-DirectionToMoon().normalized * cameraOffset.z) + (Vector3.Cross(DirectionToMoon().normalized, VelocityProjected().normalized) * cameraOffset.x) + (VelocityProjected().normalized * cameraOffset.y);
+    }
 
     private void HandleCamera()
     {
         // Set the camera's position, I was really tired when I wrote this
-        cam.transform.position = transform.position + (-DirectionToMoon() * cameraOffset.z) + (cam.transform.right.normalized * cameraOffset.x) + (cam.transform.up.normalized * cameraOffset.y);
+        cam.transform.position = CalculateCameraPos();
+
+        if (isTurning)
+        {
+            // rotate the camera based on mouse movement, the camera z direction should be locked towards velocity projected
+            cam.transform.RotateAround(cam.transform.position, -(moon.position - cam.transform.position).normalized, Input.GetAxis("Mouse X") * cameraTurnSpeed);
+            cam.transform.RotateAround(cam.transform.position, cam.transform.right, -Input.GetAxis("Mouse Y") * cameraTurnSpeed);
+
+
+            return;
+        }
+
+        // up dir should be the velocity projected onto the moon's surface
+        // also the forward direction should be the direction to the moon
+        // but be adjusted based on the current velocity projected to dynamically adjust the camera to look where ur going
+        Vector3 forward = Vector3.Lerp(DirectionToMoon().normalized, (VelocityProjected().normalized * 2) + DirectionToMoon().normalized, VelocityProjected().magnitude/30);
+        var targetCameraRotation = Quaternion.LookRotation(forward, VelocityProjected());
+
 
         // Smoothly interpolate the camera's current rotation towards the target rotation
-        cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, TargetCameraRotation(), cameraTurnSpeed * Time.deltaTime);
+        cam.transform.rotation = Quaternion.Slerp(cam.transform.rotation, targetCameraRotation, cameraTurnSpeed * Time.deltaTime);
     }
 
     private void HandleIKLegs()
@@ -348,10 +403,10 @@ public class ShipController : GravityObject
         cam = Camera.main;
 
         // Set the camera's position, I was really tired when I wrote this
-        cam.transform.position = transform.position + (-DirectionToMoon() * cameraOffset.z) + (cam.transform.right.normalized * cameraOffset.x) + (cam.transform.up.normalized * cameraOffset.y);
+        cam.transform.position = CalculateCameraPos();
 
-        // Instantly set the camera's rotation to the target rotation
-        cam.transform.rotation = TargetCameraRotation();
+        // Instantly set the camera's rotation
+        cam.transform.rotation = Quaternion.LookRotation(DirectionToMoon(), VelocityProjected()); ;
     }
 
     void InitRigidbody()
@@ -394,16 +449,26 @@ public class ShipController : GravityObject
 
         // Position the camera relative to the ships rigidbody
         // Has to be below InitRigidbody()
-        InitializeCamera();
         InitializeLegs();
+
+        if (!inMenue)
+            InitializeCamera();
 
         maxFuel = fuel;
 
     }
 
+    public float GetFuel()
+    {
+        return fuel;
+    }
+
     private void DIE()
     {
         // U dies
+        game.GameOver();
+
+        dead = true;
 
         // spawn explosion
         ParticleSystem p = Instantiate(explosion, transform.position, Quaternion.identity);
@@ -417,5 +482,11 @@ public class ShipController : GravityObject
         {
             DIE();
         }
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.green;
+        Gizmos.DrawSphere(CalculateCameraPos(), 0.5f);
     }
 }
