@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class ShipController : GravityObject
+public class ShipController : MonoBehaviour
 {
     public bool inMenue = false;
     private bool dead = false;
@@ -81,6 +81,7 @@ public class ShipController : GravityObject
         }
 
         InitializeShip();
+
         game = FindObjectOfType<GameHandler>();
     }
 
@@ -443,16 +444,20 @@ public class ShipController : GravityObject
 
     private void InitializeShip()
     {
-        // Get and Set the initial velocity of the ship
         InitRigidbody();
+
+        if (!inMenue)
+        {
+            RandomSpawn();
+            InitializeCamera();
+        }
+
+        // Get and Set the initial velocity of the ship
         SetVelocity(Initial.Velocity());
 
-        // Position the camera relative to the ships rigidbody
         // Has to be below InitRigidbody()
         InitializeLegs();
 
-        if (!inMenue)
-            InitializeCamera();
 
         maxFuel = fuel;
 
@@ -461,6 +466,25 @@ public class ShipController : GravityObject
     public float GetFuel()
     {
         return fuel;
+    }
+
+    private void RandomSpawn()
+    {
+        // randomly place the ship above the surface of the moon
+        Vector3 randomPos = Random.onUnitSphere * Random.Range(166f, 200f);
+
+        transform.position = randomPos;
+        rb.position = randomPos;
+        Initial.transform.position = randomPos;
+
+        // rotate initial to face the moon
+        Initial.transform.rotation = Quaternion.LookRotation(-randomPos.normalized, Vector3.up);
+
+        // rotate initial randomly along the forward axis to give the ship a random initial direction
+        Initial.transform.Rotate(Initial.transform.forward, Random.Range(0, 360), Space.World);
+
+        // rotate the ship to match the initial
+        transform.rotation = Initial.transform.rotation;
     }
 
     private void DIE()

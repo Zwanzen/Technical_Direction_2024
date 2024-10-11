@@ -12,7 +12,7 @@ public class ShipDirectionSetter : MonoBehaviour
 
     public Vector3 Velocity()
     {
-        var dir = transform.forward.normalized * initialForce;
+        var dir = transform.up.normalized * initialForce;
         return dir;
     }
 
@@ -23,11 +23,5 @@ public class ShipDirectionSetter : MonoBehaviour
 
         transform.position = ship.position;
         ship.rotation = transform.rotation;
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        Gizmos.color = Color.red;
-        Gizmos.DrawLine(transform.position, transform.position + transform.forward * 100);
     }
 }

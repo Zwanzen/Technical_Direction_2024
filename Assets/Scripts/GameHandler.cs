@@ -84,7 +84,6 @@ public class GameHandler : MonoBehaviour
     public void Play()
     {
         SceneManager.LoadScene(1);
-        shipController.inMenue = false;
     }
 
     public void Exit()
