@@ -1,9 +1,9 @@
 Controls: 
 Pitch - W,A
-Yaw - A,D
-Roll - Q,E
+/ Yaw - A,D
+/ Roll - Q,E
 
-Right Click - Look Around
+Right Click - Look Around / 
 Thruster - Drag Slider Down
 
 Game:
